@@ -3,5 +3,21 @@ jobs:
   build:
     docker:
       - image: circleci/php:7.3-node-browsers
+    #CircleCIでのテスト実施環境構築
+    #CircleCIで実施するテストでは、あなたのPCのローカル環境で実施するテストとは違って、このように必要なパッケージを毎回インストールしなければならないということを覚えておいてください。
     steps:
-      - run: echo "Hello World"
+      #githubからCircleCIの環境にソースコードをコピー（git clone）してくる。
+      - checkout
+      #composerのエラー回避処理
+      - run: sudo composer self-update --1
+      #composerを使用してphp関連パッケージをインストール（checkoutの時点ではlaravelのフレームワークやPHPパッケージが存在しない）
+      - run: composer install -n --prefer-dist
+      #javascript各種パッケージインストール
+      - run: npm ci
+      #JavaScriptのトランスパイル
+      - run: npm run dev
+      - run: 
+          #CircleCIの画面の表示されるステップ名
+          name: php test
+          #実行するシェルコマンド
+          command: ./vendor/bin/phpunit
