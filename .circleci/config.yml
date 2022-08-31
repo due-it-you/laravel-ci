@@ -3,6 +3,20 @@ jobs:
   build:
     docker:
       - image: circleci/php:7.3-node-browsers
+      - image: circleci/postgres:11.6-alpine
+        environment:
+          POSTGRES_DB: larasns
+          POSTGRES_USER: default
+          POSTGRES_PASSWORD: default
+
+    environment:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_DATABASE: larasns
+      DB_USERNAME: default
+      DB_PASSWORD: secret      
     #CircleCIでのテスト実施環境構築
     #CircleCIで実施するテストでは、あなたのPCのローカル環境で実施するテストとは違って、このように必要なパッケージを毎回インストールしなければならないということを覚えておいてください。
     steps:
@@ -48,6 +62,14 @@ jobs:
 
       #JavaScriptのトランスパイル
       - run: npm run dev
+      - run: 
+          name: get ready for postgres
+          command: |
+            sudo apt-get update
+            sudo apt-get install libpq-dev
+            sudo docker-php-ext-install pdo_pgsql
+            dockerize -wait tcp://localhost:5432 -timeout 1m
+
       - run: 
           #CircleCIの画面の表示されるステップ名
           name: php test
