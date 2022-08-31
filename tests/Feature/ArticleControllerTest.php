@@ -18,7 +18,7 @@ class ArticleControllerTest extends TestCase
 
         //ステータスコードのテスト
         $response->assertStatus(200)
-        //$responseで使用されているビューがちゃんと使用されているかのテスト
+        //$responseで使用されているビューがちゃんと使用されているかのテスト .....
             ->assertViewIs('articles.index');
     }
 
