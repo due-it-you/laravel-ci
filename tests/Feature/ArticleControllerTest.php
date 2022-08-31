@@ -17,7 +17,7 @@ class ArticleControllerTest extends TestCase
         $response = $this->get(route('articles.index'));
 
         //ステータスコードのテスト
-        $response->assertStatus(200)
+        $response->assertStatus(400)
         //$responseで使用されているビューがちゃんと使用されているかのテスト .....
             ->assertViewIs('articles.index');
     }
