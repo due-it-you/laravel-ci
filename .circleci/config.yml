@@ -10,8 +10,21 @@ jobs:
       - checkout
       #composerのエラー回避処理
       - run: sudo composer self-update --1
+      #保存されたキャッシュの復元(vendorディレクトリに情報が復元される)
+      - restore_cache: 
+          key: composer-v1-{{ checksum "composer.lock" }}
+
       #composerを使用してphp関連パッケージをインストール（checkoutの時点ではlaravelのフレームワークやPHPパッケージが存在しない）
+      #同時にvendorディレクトリにキャッシュが作成される。
       - run: composer install -n --prefer-dist
+
+      #keyにて指定した名前でキャッシュを保存(保存先はpathsで指定)
+      - save_cache: 
+          #ハッシュ値を算出しておくことで、composerに何か変更があれば、キャッシュを復元せずに新たなインストールを開始してくれる。
+          key: composer-v1-{{ checksum "composer.lock" }}
+          paths:
+            - vendor
+
       #javascript各種パッケージインストール
       - run: npm ci
       #JavaScriptのトランスパイル
