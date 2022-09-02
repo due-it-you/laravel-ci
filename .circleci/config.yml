@@ -2,6 +2,55 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/php:7.3-node-browsers
+      - image: circleci/php:7.3-node-browsers    
+    #CircleCIでのテスト実施環境構築
+    #CircleCIで実施するテストでは、あなたのPCのローカル環境で実施するテストとは違って、このように必要なパッケージを毎回インストールしなければならないということを覚えておいてください。
     steps:
-      - run: echo "Hello World"
+      #githubからCircleCIの環境にソースコードをコピー（git clone）してくる。
+      - checkout
+      #composerのエラー回避処理
+      - run: sudo composer self-update --1
+      #保存されたキャッシュの復元(vendorディレクトリに情報が復元される)
+      - restore_cache: 
+          key: composer-v1-{{ checksum "composer.lock" }}
+
+      #composerを使用してphp関連パッケージをインストール（checkoutの時点ではlaravelのフレームワークやPHPパッケージが存在しない）
+      #同時にvendorディレクトリにキャッシュが作成される。
+      - run: composer install -n --prefer-dist
+
+      #keyにて指定した名前でキャッシュを保存(保存先はpathsで指定)
+      - save_cache: 
+          #ハッシュ値を算出しておくことで、composerに何か変更があれば、キャッシュを復元せずに新たなインストールを開始してそれをキャッシュとして保存してくれる。
+          key: composer-v1-{{ checksum "composer.lock" }}
+          paths:
+            - vendor
+
+      #ここからはnpmのキャッシュ処理
+
+      #
+      - restore_cache: 
+          key: npm-v1-{{ checksum "package-lock.json" }}
+
+      - run:
+          name: npm ci
+          # | (パイプ)を一行目に書くことで、この後の処理が複数行あることを示す）
+          #if文にて、node_modulesがなければtrueでnpm ciを走らせる
+          #npmはインストール時にnode_modulesが削除されるので、もしnode_modulesがない時のみnpm ciを走らせるようにしている
+          command: |
+            if [ ! -d node_modules ]; then
+              npm ci
+            fi
+      
+      - save_cache:
+          key: npm-v1-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+
+      #JavaScriptのトランスパイル
+      - run: npm run dev
+
+      - run: 
+          #CircleCIの画面の表示されるステップ名
+          name: php test
+          #実行するシェルコマンド
+          command: ./vendor/bin/phpunit
