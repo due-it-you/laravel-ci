@@ -1,5 +1,6 @@
 version: 2.1
 jobs:
+  #ビルドの実行内容
   build:
     docker:
       - image: circleci/php:7.3-node-browsers    
@@ -54,3 +55,49 @@ jobs:
           name: php test
           #実行するシェルコマンド
           command: ./vendor/bin/phpunit
+
+  #デプロイの実行内容
+  deploy:
+    docker:
+        #各ジョブは独立した環境であり、実行時に構築され、終了すれば廃棄される仕組みであるから、
+        #改めてもう一度dockerのイメージを指定する必要がある。 他のことも同様。
+      - image: circleci/php:7.3-node-browsers
+    steps:
+      #CircleCIの設定画面で登録したSSHの秘密鍵を使用できるようになる
+      - add_ssh_keys
+      - run:
+          name: deploy
+          # 最初にsshログインをし、その後の ""の中にSSHログイン後に実行したいコマンドを文字列として渡している。
+          # なお、 \ を入れることで、見た目上は改行をしつつ、これが一行のコマンドですよとコンピュータに示している。
+
+          # SSHログイン => laravel-ciディレクトリに移動 => git pull origin master でEC2に内容を反映
+          # => composer install => npm install => JavaScriptのトランスパイル => migration 
+          # => Laravelの全設定ファイルを一つのファイルにまとめ、ファイルアクセス効率を高める。
+          command: |
+            ssh -o StrictHostKeyChecking=no -t webapp@${HOST_NAME} "cd laravel-ci && \
+              git pull origin master && \
+              composer install -n --no-dev --prefer-dist && \
+              npm ci && \
+              npm run prod && \
+              php artisan migrate --force && \
+              php artisan config:cache"
+
+#上記で定義した各ジョブの開始条件を定義(1~7の動き)
+workflows:
+  version: 2
+  build_deploy:
+    jobs:
+      #まずは最初にbuildジョブを行う
+      - build
+      - deploy:
+          #そのジョブが開始するにあたり、正常終了している必要のあるジョブを指定します。
+          #この場合。 buildジョブが正常終了してから、deployジョブが開始するという意味。
+          requires:
+            - build
+          #特定のブランチへのプッシュの時のみ、ジョブが動くようにする。
+          filters:
+            branches:
+              #masterブランチにコミットがプッシュされた時のみdeployジョブが開始するように指定。
+              only:
+                - master
+
